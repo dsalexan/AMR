@@ -10,8 +10,12 @@ public class OctreeObject : MonoBehaviour
 
     public Mesh mesh;
 
+    public bool ProjectToSphere = false;
     public Vector3 Dimensions = new Vector3(1f, 1f, 1f);
     public Vector3 Cells = new Vector3(10, 10, 10);
+    public float Depth = 1f;
+
+    private List<int> faces = new List<int>();
 
     public void Render()
     {
@@ -24,38 +28,64 @@ public class OctreeObject : MonoBehaviour
     public void CreateMesh()
     {
         if (mesh == null) mesh = new Mesh();
-
-        int I = (int)Cells[0];
-        int J = (int)Cells[1];
-        int K = (int)Cells[2];
-
-        float X = Dimensions[0];
-        float Y = Dimensions[1];
-        float Z = Dimensions[2];
-
-        float dX = X / (I - 1);
-        float dY = Y / (J - 1);
-        float dZ = Z / (K - 1);
+        else mesh.Clear();
 
         List<Vector3> vertices = new List<Vector3>();
+        faces.Clear();
 
-        float x0 = -X / 2f;
-        float y0 = -Y / 2f;
-        float z0 = -Z / 2f;
-        
-        for (int i = 0; i < I; i++)
+        int A = (int) Cells.x;
+        int B = (int) Cells.z;
+        int C = (int) Cells.y;
+
+        float dA = 2f / A;
+        float dB = 2f / B;
+        float dC = C == 1 ? 0f : -Depth / (C - 1);
+
+        float a0 = -1f + dA / 2f;
+        float b0 = -1f + dB / 2f;
+        float c0 = 1f;
+
+        for (int f = 0; f < 6; f++)
         {
-            for (int j = 0; j < J; j++)
+            int d = f / 2;
+            
+            for (int a = 0; a < A; a++)
             {
-                for (int k = 0; k < K; k++)
+                for (int b = 0; b < B; b++)
                 {
-                    Vector3 vertex = new Vector3
+                    for (int c = 0; c < C; c++)
                     {
-                        x = i * dX + x0,
-                        y = j * dY + y0,
-                        z = k * dZ + z0
-                    };
-                    vertices.Add(vertex);
+                        float sign = f % 2 == 0 ? 1 : -1;
+
+                        float xa = a * dA + a0;
+                        float xb = b * dB + b0;
+
+                        float xc = c * dC + c0;
+
+                        Vector3 v = new Vector3();
+                        // new Vector3(xc * sign, xb * xc, xa * xc);
+                        if (d == 0) // X
+                        {
+                            v.x = xc * sign;
+                            v.y = xb * xc;
+                            v.z = xa * xc;
+                        } else if (d == 1) // Y
+                        {
+                            v.x = xa * xc;
+                            v.y = xc * sign;
+                            v.z = xb * xc;
+                        } else if (d == 2) // Z
+                        {
+                            v.x = xb * xc;
+                            v.y = xa * xc;
+                            v.z = xc * sign;
+                        }
+
+                        Vector3 vo = (v / v.magnitude) * xc;
+
+                        vertices.Add(ProjectToSphere ? vo : v);
+                        faces.Add(f);
+                    }
                 }
             }
         }
@@ -66,14 +96,30 @@ public class OctreeObject : MonoBehaviour
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.red;
-        Gizmos.DrawWireCube(this.transform.position, this.transform.TransformVector(Dimensions));
+        if (!ProjectToSphere)
+        {
+            Gizmos.DrawWireCube(this.transform.position, this.transform.TransformVector(Vector3.one * 2f));
+            Gizmos.DrawWireCube(this.transform.position, this.transform.TransformVector(Vector3.one * 2f * (1f - Depth)));
+        }
+        else
+        {
+            Gizmos.DrawWireSphere(this.transform.position, transform.localScale.x);
+            Gizmos.DrawWireSphere(this.transform.position, transform.localScale.x * (1f - Depth));
+        }
 
         if (mesh != null)
         {
-            Gizmos.color = Color.red;
-            foreach (Vector3 vertex in mesh.vertices)
+            for (int i = 0; i < faces.Count; i++)
             {
-                Gizmos.DrawSphere(transform.TransformPoint(vertex), 0.1f);
+                Gizmos.color = Color.red;
+                if (faces[i] == 1) Gizmos.color = Color.magenta;
+                else if (faces[i] == 2) Gizmos.color = Color.blue;
+                else if (faces[i] == 3) Gizmos.color = Color.cyan;
+                else if (faces[i] == 4) Gizmos.color = Color.green;
+                else if (faces[i] == 5) Gizmos.color = Color.yellow;
+
+                Vector3 vertex = mesh.vertices[i];
+                Gizmos.DrawSphere(transform.TransformPoint(vertex), 0.5f);
             }
         }
     }
