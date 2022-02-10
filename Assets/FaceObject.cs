@@ -13,6 +13,10 @@ public class FaceObject : MonoBehaviour
 
     public bool ProjectToSphere = false;
     public Sphere sphere;
+    
+    public float RenderDepthLevel = -1f;
+    public float RenderLatitudeLevel = -1f;
+    public float RenderLongitudeLevel = -1f;
 
     public void Render()
     {
@@ -26,12 +30,30 @@ public class FaceObject : MonoBehaviour
     {
         if (sphere != null)
         {
+            int targetDepth = -1;
+            int targetLatitude = -1;
+            int targetLongitude = -1;
+
+            if (RenderDepthLevel != -1f)
+            {
+                if (RenderDepthLevel > sphere.Depth) RenderDepthLevel = sphere.Depth;
+
+                int Ρ = sphere.Ρ();
+                float dρ = Ρ == 1 ? 0f : -sphere.Depth / (Ρ - 1);
+                targetDepth = Mathf.RoundToInt(RenderDepthLevel / dρ);
+                RenderDepthLevel = targetDepth * dρ;
+            }
+            
+                
             for (int i = 0; i < sphere.faces.Length; i++)
             {
                 int f = sphere.faces[i];
                 if (f != (int)Face) continue;
                 
                 Vector3 vertex = ProjectToSphere ? sphere.vertices[i] : sphere.cubedVertices[i];
+                int[] indices = sphere.indices[i];
+                
+                if (targetDepth != -1 && indices[1] != targetDepth) continue;
 
                 Gizmos.color = Color.red;
                 if (sphere.faces[i] == 1) Gizmos.color = Color.magenta;

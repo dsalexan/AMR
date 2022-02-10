@@ -28,21 +28,36 @@ public class Sphere : ScriptableObject
     [HideInInspector]
     public Vector3[] cubedVertices;
 
-    public void Generate()
+    [HideInInspector] public int[][] indices;
+
+    public int Ρ()
+    {
+        float RadiusInM = Radius * 1e6f;
+        float depthResolution = Resolution.x * 1e6f; // in m
+        
+        return Math.Max(1, Mathf.CeilToInt((Depth * RadiusInM) / depthResolution)); // number of cells in radial/depth axis   
+    }
+
+    public int S()
     {
         int F = 6;
-
         float RadiusInM = Radius * 1e6f;
 
-        float depthResolution = Resolution.x * 1e6f; // in m
         float surfaceResolution = Resolution.y * 1e6f; // in m
 
         float areaOfPlanet = 4f * Mathf.PI * (RadiusInM * RadiusInM); // in m
         float areaOfRegion = 4f * Mathf.PI * (surfaceResolution * surfaceResolution);
-
-        int Ρ = Math.Max(1, Mathf.CeilToInt((Depth * RadiusInM) / depthResolution)); // number of cells in radial/depth axis
+        
         float S2 = areaOfPlanet / (areaOfRegion * F);
-        int S = Mathf.CeilToInt(Mathf.Sqrt(S2));
+        return Mathf.CeilToInt(Mathf.Sqrt(S2));
+    }
+
+    public void Generate()
+    {
+        int F = 6;
+        
+        int Ρ = this.Ρ();
+        int S = this.S();
 
         int N = S * S * F * Ρ;
 
@@ -50,6 +65,8 @@ public class Sphere : ScriptableObject
         faces = new int[N];
         
         cubedVertices = new Vector3[N];
+        
+        indices = new int[N][];
         
         // calculate deltas and initial positions
         float dS = 2f / S;
@@ -102,6 +119,7 @@ public class Sphere : ScriptableObject
                         cubedVertices[i] = v;
                         vertices[i] = vo;
                         faces[i] = f;
+                        indices[i] = new int[] { i, ρ, a, b };
                         i++;
                     }
                 }
